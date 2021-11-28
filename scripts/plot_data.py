@@ -5,6 +5,7 @@ This script imports and analyzes scuba dive data.
 @date 10/13/2021
 '''
 
+import os
 import re
 import numpy as np
 import matplotlib.pyplot as plt
@@ -61,11 +62,11 @@ def separate_dives(dive_info):
     @return a list of dataframes, one for each dive.
     '''
 
-    unique_dive_ids = list(set(dive_info.index))
+    unique_dive_ids = list(set(dive_info.dive_number))
     print('Found {} unique dives.'.format(len(unique_dive_ids)))
     tables = []
     for dive_id in unique_dive_ids:
-        tables.append(dive_info[dive_info.index == dive_id])
+        tables.append(dive_info[dive_info.dive_number == dive_id])
     return tables
 
 def convert_to_sec(min_str):
@@ -143,16 +144,20 @@ def compute_volumetric_consumption(df_in):
     return df_in
 
 # Read dive computer data, cleanup names, and delete unnecessary columns.
-dive_profiles = cleanup_columns(pd.DataFrame.from_csv('dive_profiles.csv'))
+proj_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+data_dir = os.path.join(proj_path, 'data')
+dive_profile_path = os.path.join(data_dir, 'dive_profiles.csv')
+dive_profiles = cleanup_columns(pd.read_csv(dive_profile_path))
 del_cols = ['sample_heartrate']
 dive_profiles = dive_profiles.drop(del_cols, axis=1)
 
 # Read tank info.
-tank_data = cleanup_columns(pd.DataFrame.from_csv('tank_info.csv'))
+tank_data_path = os.path.join(data_dir, 'tank_info.csv')
+tank_data = cleanup_columns(pd.read_csv(tank_data_path))
 
 # Populate tank info.
-full_table = pd.DataFrame.merge(dive_profiles, tank_data, left_index=True,
-                                right_index=True)
+full_table = pd.DataFrame.merge(dive_profiles, tank_data, left_on='dive_number',
+                                right_on='dive_number', how='left')
 
 # Compute elapsed time in seconds.
 min_strs = list(full_table.sample_time__min.values)
@@ -161,17 +166,11 @@ full_table['elapsed_time__sec'] = np.array(list(map(convert_to_sec, min_strs)))
 # Separate tables per dive.
 sep_profiles = separate_dives(full_table)
 
-# Plot pressure vs time.
-#fig1 = plt.figure()
-#for profile in sep_profiles:
-#    plt.plot(profile.elapsed_time__sec, profile.sample_pressure__psi)
-
-
 # Plot mass vs time.
 fig2 = plt.figure()
 sep_profiles_mass = list(map(compute_volumetric_consumption, sep_profiles))
 for profile in sep_profiles_mass:
-    dive_id = list(set(profile.index))
+    dive_id = list(set(profile.dive_number))
     label = 'Dive {}'.format(dive_id[0])
     plt.plot(profile.elapsed_time__sec/60.0,
              profile.mass__slug, label=label)
@@ -183,7 +182,7 @@ plt.legend()
 # Plot mdot vs time.
 fig3 = plt.figure()
 for profile in sep_profiles_mass:
-    dive_id = list(set(profile.index))
+    dive_id = list(set(profile.dive_number))
     label = 'Dive {}'.format(dive_id[0])
     plt.plot(profile.elapsed_time__sec/60.0,
              profile.volumetric_flow_rate__ft3qs,
