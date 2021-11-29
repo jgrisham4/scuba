@@ -11,6 +11,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
+p_surface = 14.7 * 144.0 # lbf/ft2
+grav = 32.174            # ft/s2
+rho_water = 1.940        # slug/ft3
+
 def cleanup_columns(df):
     '''This function cleans up column names of pandas dataframes.
 
@@ -141,7 +145,40 @@ def compute_volumetric_consumption(df_in):
     # Compute volumetric flowrate.
     df_in['volumetric_flow_rate__ft3qs'] = mdot / df_in.density__slugqft3
 
-    return df_in
+    # SAC = dP / (dt * p(d_avg))
+    tank_pressure = df_in.sample_pressure__psi.values * 144.0 # psf
+    dive_duration = time[-1] - time[0]
+    average_depth = np.mean(df_in.sample_depth__ft)
+    avg_water_pressure = p0 + rho_water * grav * average_depth
+    surface_avg_consumption = (tank_pressure[-1] - tank_pressure[0]) / \
+            (dive_duration * avg_water_pressure)
+
+    return df_in, surface_avg_consumption
+
+def compute_sac(df_in):
+    '''Computes surface air consumption.
+
+    SAC = dP / (dt * p(d_avg))
+    '''
+
+    time = df_in.elapsed_time__sec
+    tank_pressure = df_in.sample_pressure__psi.values * 144.0 # psf
+    dive_duration = time[-1] - time[0]
+    average_depth = np.mean(df_in.sample_depth__ft)
+    avg_water_pressure = p0 + rho_water * grav * average_depth
+    surface_air_consumption = (tank_pressure[-1] - tank_pressure[0]) / \
+            (dive_duration * avg_water_pressure)
+
+    return surface_air_consumption
+
+def compute_rmv(df_in, sac):
+    '''Computes respiratory minute volume.
+
+    RMV = SAC * tank_volume / p_operating
+    '''
+
+    return []
+
 
 # Read dive computer data, cleanup names, and delete unnecessary columns.
 proj_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
