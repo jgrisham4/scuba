@@ -22,10 +22,11 @@ GAS_CONSTANT = 1716.49   # ft-lbf/slug-R
 C_PSI = 144.0
 
 # Define conversion factors from metric to imperial base units.
-C_KG = 1.0               # FIXME
-C_M = 1.0                # FIXME
-C_PA = 1.0               # FIXME
-C_KELVIN = 1.0           # FIXME
+C_NEWTON = 0.224809
+C_KG = 0.0685218
+C_M = 3.28084
+C_PA = C_NEWTON / C_M**2
+C_KELVIN = 1.8
 
 def cleanup_columns(orig_df):
     '''This function cleans up column names of pandas dataframes.
